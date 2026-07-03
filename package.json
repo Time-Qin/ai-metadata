@@ -1,0 +1,37 @@
+{
+  "name": "aigc-metadata",
+  "version": "1.0.0",
+  "description": "Browser-side AIGC implicit metadata SDK for OOXML/PDF files",
+  "type": "module",
+  "main": "./dist/aigc-metadata.cjs",
+  "module": "./dist/aigc-metadata.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/aigc-metadata.mjs",
+      "require": "./dist/aigc-metadata.cjs"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/node": "^22.10.0",
+    "@xmldom/xmldom": "^0.9.10",
+    "happy-dom": "^15.11.0",
+    "rollup": "^4.28.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

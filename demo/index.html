@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIGC 元数据 SDK - 浏览器 Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #7c9eff; }
+    .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed #3a3f4b;
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1a1d27;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #7c9eff;
+      background: #1e2230;
+    }
+    .drop-zone .icon { font-size: 48px; margin-bottom: 12px; }
+    .drop-zone .text { color: #aaa; font-size: 15px; }
+    .drop-zone .hint { color: #666; font-size: 12px; margin-top: 8px; }
+
+    /* File Info */
+    .file-info {
+      display: none;
+      background: #1a1d27;
+      border: 1px solid #2a2f3b;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 16px;
+    }
+    .file-info.active { display: block; }
+    .file-info .row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .file-info .label { color: #888; }
+    .file-info .value { color: #e0e0e0; font-weight: 500; }
+
+    /* Actions */
+    .actions {
+      display: none;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .actions.active { display: flex; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-read { background: #2d4a7a; color: #7c9eff; }
+    .btn-read:hover:not(:disabled) { background: #34548b; }
+    .btn-write { background: #1a5c3a; color: #4ade80; }
+    .btn-write:hover:not(:disabled) { background: #1f6e47; }
+    .btn-remove { background: #5c1a1a; color: #f87171; }
+    .btn-remove:hover:not(:disabled) { background: #6e1f1f; }
+    .btn-download { background: #4a3a0e; color: #fbbf24; }
+    .btn-download:hover:not(:disabled) { background: #5a4712; }
+
+    /* Metadata Form */
+    .metadata-form {
+      display: none;
+      background: #1a1d27;
+      border: 1px solid #2a2f3b;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+    .metadata-form.active { display: block; }
+    .metadata-form h3 { font-size: 16px; margin-bottom: 16px; color: #ccc; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { font-size: 12px; color: #888; }
+    .form-field input {
+      background: #0f1117;
+      border: 1px solid #2a2f3b;
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-field input:focus { border-color: #7c9eff; }
+
+    /* Log */
+    .log-area {
+      margin-top: 16px;
+      background: #0a0c12;
+      border: 1px solid #2a2f3b;
+      border-radius: 10px;
+      padding: 16px;
+      max-height: 240px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .log-entry { padding: 2px 0; }
+    .log-time { color: #555; }
+    .log-info { color: #7c9eff; }
+    .log-success { color: #4ade80; }
+    .log-error { color: #f87171; }
+    .log-warn { color: #fbbf24; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-found { background: #1a5c3a; color: #4ade80; }
+    .status-not-found { background: #3a2a0e; color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AIGC 元数据 SDK</h1>
+    <p class="subtitle">浏览器端 AIGC 隐式元数据注入 / 读取 / 删除 — 支持 PDF、DOCX、PPTX、XLSX</p>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">📄</div>
+      <div class="text">拖拽文件到此处，或点击选择文件</div>
+      <div class="hint">支持 PDF / DOCX / PPTX / XLSX</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.xlsx" style="display:none">
+
+    <!-- File Info -->
+    <div class="file-info" id="fileInfo">
+      <div class="row"><span class="label">文件名</span><span class="value" id="fileName">-</span></div>
+      <div class="row"><span class="label">大小</span><span class="value" id="fileSize">-</span></div>
+      <div class="row"><span class="label">类型</span><span class="value" id="fileType">-</span></div>
+      <div class="row"><span class="label">AIGC 元数据</span><span class="value" id="fileHasMeta">-</span></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions" id="actions">
+      <button class="btn btn-read" id="btnRead">读取元数据</button>
+      <button class="btn btn-write" id="btnWrite">写入元数据</button>
+      <button class="btn btn-remove" id="btnRemove">删除元数据</button>
+      <button class="btn btn-download" id="btnDownload" disabled>下载修改后的文件</button>
+    </div>
+
+    <!-- Metadata Form -->
+    <div class="metadata-form" id="metadataForm">
+      <h3>AIGC 元数据内容</h3>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label>Label（标识类型）</label>
+          <input type="text" id="meta_label" placeholder="例如：AI-generated">
+        </div>
+        <div class="form-field">
+          <label>ContentProducer（内容生产者）</label>
+          <input type="text" id="meta_contentProducer" placeholder="例如：GPT-4">
+        </div>
+        <div class="form-field">
+          <label>ProduceID（生成ID）</label>
+          <input type="text" id="meta_produceId" placeholder="UUID">
+        </div>
+        <div class="form-field">
+          <label>ReservedCode1（保留码1）</label>
+          <input type="text" id="meta_reservedCode1" placeholder="">
+        </div>
+        <div class="form-field">
+          <label>ContentPropagator（内容传播者）</label>
+          <input type="text" id="meta_contentPropagator" placeholder="">
+        </div>
+        <div class="form-field">
+          <label>PropagateID（传播ID）</label>
+          <input type="text" id="meta_propagateId" placeholder="">
+        </div>
+        <div class="form-field">
+          <label>ReservedCode2（保留码2）</label>
+          <input type="text" id="meta_reservedCode2" placeholder="">
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-area" id="logArea">
+      <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">SDK 加载中...</span></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AIGCSDK } from '../dist/aigc-metadata.mjs';
+
+    const sdk = new AIGCSDK();
+    let currentBuffer = null;     // ArrayBuffer of original file
+    let modifiedBuffer = null;    // ArrayBuffer of modified file
+    let currentFileName = '';
+
+    // ---- DOM ----
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const actions = document.getElementById('actions');
+    const metadataForm = document.getElementById('metadataForm');
+    const logArea = document.getElementById('logArea');
+    const btnDownload = document.getElementById('btnDownload');
+
+    // ---- Logging ----
+    function log(type, msg) {
+      const now = new Date();
+      const time = String(now.getHours()).padStart(2,'0') + ':' +
+                   String(now.getMinutes()).padStart(2,'0') + ':' +
+                   String(now.getSeconds()).padStart(2,'0');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${msg}</span>`;
+      logArea.appendChild(entry);
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    log('success', 'SDK 加载成功，等待文件...');
+
+    // ---- File Handling ----
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    async function handleFile(file) {
+      log('info', `加载文件: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      currentFileName = file.name;
+      currentBuffer = await file.arrayBuffer();
+      modifiedBuffer = null;
+      btnDownload.disabled = true;
+
+      // Detect file type
+      try {
+        const hasMeta = await sdk.hasMetadata(currentBuffer);
+        log('info', '文件加载成功--------------------');
+        const meta = await sdk.readMetadata(currentBuffer);
+        log('info', '文件加载成功--------------------');
+        const ext = file.name.split('.').pop().toUpperCase();
+
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatSize(file.size);
+        document.getElementById('fileType').textContent = ext;
+        const hasMetaEl = document.getElementById('fileHasMeta');
+        if (hasMeta) {
+          hasMetaEl.innerHTML = '<span class="status-badge status-found">已存在</span>';
+        } else {
+          hasMetaEl.innerHTML = '<span class="status-badge status-not-found">无</span>';
+        }
+
+        fileInfo.classList.add('active');
+        actions.classList.add('active');
+        metadataForm.classList.add('active');
+
+        if (meta) {
+          fillForm(meta);
+          log('success', '检测到 AIGC 元数据，已填充到表单');
+        } else {
+          fillForm({
+            label: '', contentProducer: '', produceId: '',
+            reservedCode1: '', contentPropagator: '', propagateId: '', reservedCode2: ''
+          });
+          log('warn', '未检测到 AIGC 元数据，可在表单中填写后写入');
+        }
+      } catch (err) {
+        log('error', `文件处理失败: ${err.message}`);
+      }
+    }
+
+    // ---- Actions ----
+    document.getElementById('btnRead').addEventListener('click', async () => {
+      if (!currentBuffer) return;
+      log('info', '读取元数据...');
+      try {
+        const meta = await sdk.readMetadata(currentBuffer);
+        if (meta) {
+          fillForm(meta);
+          log('success', '读取成功');
+        } else {
+          log('warn', '文件中不存在 AIGC 元数据');
+        }
+      } catch (err) {
+        log('error', `读取失败: ${err.message}`);
+      }
+    });
+
+    document.getElementById('btnWrite').addEventListener('click', async () => {
+      if (!currentBuffer) return;
+      const meta = collectForm();
+      if (!sdk.validateMetadata(meta)) {
+        log('error', '元数据校验失败：7 个字段均为必填且必须为字符串');
+        return;
+      }
+      log('info', '写入元数据...');
+      try {
+        modifiedBuffer = await sdk.addMetadata(currentBuffer, meta);
+        btnDownload.disabled = false;
+        log('success', `写入成功！修改后文件大小: ${formatSize(modifiedBuffer.byteLength)}`);
+
+        // Verify
+        const verify = await sdk.readMetadata(modifiedBuffer);
+        if (verify) {
+          log('success', '验证通过：重新读取元数据一致');
+        } else {
+          log('warn', '警告：写入后无法读取到元数据');
+        }
+      } catch (err) {
+        log('error', `写入失败: ${err.message}`);
+      }
+    });
+
+    document.getElementById('btnRemove').addEventListener('click', async () => {
+      if (!currentBuffer) return;
+      log('info', '删除元数据...');
+      try {
+        modifiedBuffer = await sdk.removeMetadata(currentBuffer);
+        btnDownload.disabled = false;
+        log('success', '删除成功');
+
+        const has = await sdk.hasMetadata(modifiedBuffer);
+        if (!has) {
+          log('success', '验证通过：元数据已不存在');
+        } else {
+          log('warn', '警告：删除后仍检测到元数据');
+        }
+      } catch (err) {
+        log('error', `删除失败: ${err.message}`);
+      }
+    });
+
+    btnDownload.addEventListener('click', () => {
+      if (!modifiedBuffer) return;
+      const blob = new Blob([modifiedBuffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'modified_' + currentFileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      log('info', '文件已下载');
+    });
+
+    // ---- Helpers ----
+    function fillForm(meta) {
+      document.getElementById('meta_label').value = meta.label || '';
+      document.getElementById('meta_contentProducer').value = meta.contentProducer || '';
+      document.getElementById('meta_produceId').value = meta.produceId || '';
+      document.getElementById('meta_reservedCode1').value = meta.reservedCode1 || '';
+      document.getElementById('meta_contentPropagator').value = meta.contentPropagator || '';
+      document.getElementById('meta_propagateId').value = meta.propagateId || '';
+      document.getElementById('meta_reservedCode2').value = meta.reservedCode2 || '';
+    }
+
+    function collectForm() {
+      return {
+        label: document.getElementById('meta_label').value,
+        contentProducer: document.getElementById('meta_contentProducer').value,
+        produceId: document.getElementById('meta_produceId').value,
+        reservedCode1: document.getElementById('meta_reservedCode1').value,
+        contentPropagator: document.getElementById('meta_contentPropagator').value,
+        propagateId: document.getElementById('meta_propagateId').value,
+        reservedCode2: document.getElementById('meta_reservedCode2').value,
+      };
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+  </script>
+</body>
+</html>
