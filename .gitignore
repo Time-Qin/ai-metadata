@@ -30,6 +30,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.npmrc
 
 # 临时文件
 tmp/
